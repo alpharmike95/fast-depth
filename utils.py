@@ -10,7 +10,7 @@ cmap = plt.cm.viridis
 
 
 def parse_command():
-    data_names = ['nyudepthv2']
+    data_names = ['nyudepthv2','kitti']
 
     from dataloaders.dataloader import MyDataloader
     modality_names = MyDataloader.modality_names
@@ -27,7 +27,9 @@ def parse_command():
     parser.add_argument('--print-freq', '-p', default=50, type=int,
                         metavar='N', help='print frequency (default: 50)')
     parser.add_argument('-e', '--evaluate', default='', type=str, metavar='PATH',)
+    parser.add_argument('--resume', default='', type=str, metavar='PATH',)
     parser.add_argument('--gpu', default='0', type=str, metavar='N', help="gpu id")
+    parser.add_argument('--batch_size', default='8', type=int, metavar='N', help="gpu id")
     parser.set_defaults(cuda=True)
 
     args = parser.parse_args()
