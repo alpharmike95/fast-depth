@@ -28,49 +28,54 @@ def main():
 
     # Data loading code
     print("=> creating data loaders...")
-    valdir = os.path.join('..', 'data', args.data, 'val')
+    valdir = os.path.join('..', 'data', args.data, 'train')
 
     if args.data == 'nyudepthv2':
         from dataloaders.nyu import NYUDataset
-        val_dataset = NYUDataset(valdir, split='val', modality=args.modality)
+        train_dataset = NYUDataset(traindir, split='train', modality=args.modality)
+    elif args.data == 'kitti':
+        from dataloaders.kitti import KITTIDataset
+        train_dataset = KITTIDataset(traindir, split='train', modality=args.modality)        
     else:
         raise RuntimeError('Dataset not found.')
 
-    # set batch size to be 1 for validation
-    val_loader = torch.utils.data.DataLoader(val_dataset,
-        batch_size=1, shuffle=False, num_workers=args.workers, pin_memory=True)
+    # set batch size
+    train_loader = torch.utils.data.DataLoader(train_dataset,
+        batch_size=args.batch_size, shuffle=False, num_workers=args.workers, pin_memory=True)
     print("=> data loaders created.")
 
-    # evaluation mode
-    if args.evaluate:
-        assert os.path.isfile(args.evaluate), \
-        "=> no model found at '{}'".format(args.evaluate)
-        print("=> loading model '{}'".format(args.evaluate))
-        checkpoint = torch.load(args.evaluate)
+    # training mode
+    if args.resume:
+        assert os.path.isfile(args.resume), \
+        "=> no model found at '{}'".format(args.resume)
+        print("=> loading model '{}'".format(args.resume))
+        checkpoint = torch.load(args.resume)
         if type(checkpoint) is dict:
             args.start_epoch = checkpoint['epoch']
-            best_result = checkpoint['best_result']
+            # last_result = checkpoint['last_result']
             model = checkpoint['model']
-            print("=> loaded best model (epoch {})".format(checkpoint['epoch']))
+            print("=> loaded last model (epoch {})".format(checkpoint['epoch']))
         else:
             model = checkpoint
             args.start_epoch = 0
-        output_directory = os.path.dirname(args.evaluate)
-        validate(val_loader, model, args.start_epoch, write_to_file=False)
-        return
+    else:
+        model = models.MobileNet(decoder='upconv', output_size=(224,224), in_channels=3, pretrained=True)
+    output_directory = os.path.dirname(args.resume)
+    train(train_loader, model, args.start_epoch, write_to_file=False)    
+    return
 
 
-def validate(val_loader, model, epoch, write_to_file=True):
+def train(train_loader, model, iepoch, write_to_file=True):
     average_meter = AverageMeter()
-    model.eval() # switch to evaluate mode
-    end = time.time()
-    for i, (input, target) in enumerate(val_loader):
+    #end = time.time()
+    for epoch in range(iepoch, arg.fepoch): 
+    for i, (input, target) in enumerate(train_loader):
         input, target = input.cuda(), target.cuda()
         # torch.cuda.synchronize()
         data_time = time.time() - end
 
         # compute output
-        end = time.time()
+        #end = time.time()
         with torch.no_grad():
             pred = model(input)
         # torch.cuda.synchronize()
@@ -126,5 +131,5 @@ def validate(val_loader, model, epoch, write_to_file=True):
                 'data_time': avg.data_time, 'gpu_time': avg.gpu_time})
     return avg, img_merge
 
-if __name__ == '__main__':
+if __name__ == '__train__':
     main()
