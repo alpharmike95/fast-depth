@@ -28,20 +28,25 @@ def main():
 
     # Data loading code
     print("=> creating data loaders...")
-    valdir = os.path.join('..', 'data', args.data, 'train')
+    traindir = os.path.join('..', 'data', args.data, 'train')
+    valdir = os.path.join('..', 'data', args.data, 'val')
 
     if args.data == 'nyudepthv2':
         from dataloaders.nyu import NYUDataset
         train_dataset = NYUDataset(traindir, split='train', modality=args.modality)
+        val_dataset = NYUDataset(valdir, split='val', modality=args.modality)
     elif args.data == 'kitti':
         from dataloaders.kitti import KITTIDataset
-        train_dataset = KITTIDataset(traindir, split='train', modality=args.modality)        
+        train_dataset = KITTIDataset(traindir, split='train', modality=args.modality)
+        val_dataset = KITTIDataset(valdir, split='val', modality=args.modality)
     else:
         raise RuntimeError('Dataset not found.')
 
     # set batch size
     train_loader = torch.utils.data.DataLoader(train_dataset,
         batch_size=args.batch_size, shuffle=False, num_workers=args.workers, pin_memory=True)
+    val_loader = torch.utils.data.DataLoader(val_dataset,
+        batch_size=1, shuffle=False, num_workers=args.workers, pin_memory=True)
     print("=> data loaders created.")
 
     # training mode
@@ -60,25 +65,35 @@ def main():
             args.start_epoch = 0
     else:
         model = models.MobileNet(decoder='upconv', output_size=(224,224), in_channels=3, pretrained=True)
-    output_directory = os.path.dirname(args.resume)
-    train(train_loader, model, args.start_epoch, write_to_file=False)    
-    return
+    # output_directory = os.path.dirname(args.resume)
+            
+    # define loss function (criterion) and optimizer
+    if args.criterion == 'l2':
+        criterion = criteria.MaskedMSELoss().cuda()
+    elif args.criterion == 'l1':
+        criterion = criteria.MaskedL1Loss().cuda()        
+    
+    train(train_loader, model, args.start_epoch, write_to_file=False)
 
 
-def train(train_loader, model, iepoch, write_to_file=True):
+def train(train_loader, model, criterion, optimizer, epoch):
     average_meter = AverageMeter()
-    #end = time.time()
-    for epoch in range(iepoch, arg.fepoch): 
+    model.train() # switch to train mode
+    end = time.time()
     for i, (input, target) in enumerate(train_loader):
+
         input, target = input.cuda(), target.cuda()
-        # torch.cuda.synchronize()
+        torch.cuda.synchronize()
         data_time = time.time() - end
 
-        # compute output
-        #end = time.time()
-        with torch.no_grad():
-            pred = model(input)
-        # torch.cuda.synchronize()
+        # compute pred
+        end = time.time()
+        pred = model(input)
+        loss = criterion(pred, target)
+        optimizer.zero_grad()
+        loss.backward() # compute gradient and do SGD step
+        optimizer.step()
+        torch.cuda.synchronize()
         gpu_time = time.time() - end
 
         # measure accuracy and record loss
@@ -87,49 +102,26 @@ def train(train_loader, model, iepoch, write_to_file=True):
         average_meter.update(result, gpu_time, data_time, input.size(0))
         end = time.time()
 
-        # save 8 images for visualization
-        skip = 50
-
-        if args.modality == 'rgb':
-            rgb = input
-
-        if i == 0:
-            img_merge = utils.merge_into_row(rgb, target, pred)
-        elif (i < 8*skip) and (i % skip == 0):
-            row = utils.merge_into_row(rgb, target, pred)
-            img_merge = utils.add_row(img_merge, row)
-        elif i == 8*skip:
-            filename = output_directory + '/comparison_' + str(epoch) + '.png'
-            utils.save_image(img_merge, filename)
-
-        if (i+1) % args.print_freq == 0:
-            print('Test: [{0}/{1}]\t'
+        if (i + 1) % args.print_freq == 0:
+            print('=> output: {}'.format(output_directory))
+            print('Train Epoch: {0} [{1}/{2}]\t'
+                  't_Data={data_time:.3f}({average.data_time:.3f}) '
                   't_GPU={gpu_time:.3f}({average.gpu_time:.3f})\n\t'
                   'RMSE={result.rmse:.2f}({average.rmse:.2f}) '
                   'MAE={result.mae:.2f}({average.mae:.2f}) '
                   'Delta1={result.delta1:.3f}({average.delta1:.3f}) '
                   'REL={result.absrel:.3f}({average.absrel:.3f}) '
                   'Lg10={result.lg10:.3f}({average.lg10:.3f}) '.format(
-                   i+1, len(val_loader), gpu_time=gpu_time, result=result, average=average_meter.average()))
+                  epoch, i+1, len(train_loader), data_time=data_time,
+                  gpu_time=gpu_time, result=result, average=average_meter.average()))
 
     avg = average_meter.average()
+    with open(train_csv, 'a') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writerow({'mse': avg.mse, 'rmse': avg.rmse, 'absrel': avg.absrel, 'lg10': avg.lg10,
+            'mae': avg.mae, 'delta1': avg.delta1, 'delta2': avg.delta2, 'delta3': avg.delta3,
+            'gpu_time': avg.gpu_time, 'data_time': avg.data_time})
 
-    print('\n*\n'
-        'RMSE={average.rmse:.3f}\n'
-        'MAE={average.mae:.3f}\n'
-        'Delta1={average.delta1:.3f}\n'
-        'REL={average.absrel:.3f}\n'
-        'Lg10={average.lg10:.3f}\n'
-        't_GPU={time:.3f}\n'.format(
-        average=avg, time=avg.gpu_time))
-
-    if write_to_file:
-        with open(test_csv, 'a') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            writer.writerow({'mse': avg.mse, 'rmse': avg.rmse, 'absrel': avg.absrel, 'lg10': avg.lg10,
-                'mae': avg.mae, 'delta1': avg.delta1, 'delta2': avg.delta2, 'delta3': avg.delta3,
-                'data_time': avg.data_time, 'gpu_time': avg.gpu_time})
-    return avg, img_merge
-
+            
 if __name__ == '__train__':
     main()
