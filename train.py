@@ -74,7 +74,7 @@ def main():
         criterion = criteria.MaskedL1Loss().cuda()        
     
     # create results folder, if not already exists
-    output_directory = os.path.dirname('./checkpoint')
+    output_directory = os.path.dirname('/content/checkpoint')
     # output_directory = utils.get_output_directory(args)
     if not os.path.exists(output_directory):
         os.makedirs(output_directory)
