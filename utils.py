@@ -30,6 +30,14 @@ def parse_command():
     parser.add_argument('--resume', default='', type=str, metavar='PATH',)
     parser.add_argument('--gpu', default='0', type=str, metavar='N', help="gpu id")
     parser.add_argument('--batch_size', default='8', type=int, metavar='N', help="gpu id")
+    parser.add_argument('-c', '--criterion', metavar='LOSS', default='l1', choices=loss_names,
+                        help='loss function: ' + ' | '.join(loss_names) + ' (default: l1)')
+    parser.add_argument('--lr', '--learning-rate', default=0.01, type=float,
+                        metavar='LR', help='initial learning rate (default 0.01)')
+    parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
+                        help='momentum')
+    parser.add_argument('--weight-decay', '--wd', default=1e-4, type=float,
+                        metavar='W', help='weight decay (default: 1e-4)')
     parser.set_defaults(cuda=True)
 
     args = parser.parse_args()
