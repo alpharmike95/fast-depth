@@ -243,5 +243,5 @@ def validate(val_loader, model, epoch, write_to_file=True):
     return avg, img_merge
 
 
-if __name__ == '__train__':
+if __name__ == '__main__':
     main()
