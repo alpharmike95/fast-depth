@@ -83,3 +83,10 @@ def add_row(img_merge, row):
 def save_image(img_merge, filename):
     img_merge = Image.fromarray(img_merge.astype('uint8'))
     img_merge.save(filename)
+    
+    
+def adjust_learning_rate(optimizer, epoch, lr_init):
+    """Sets the learning rate to the initial LR decayed by 10 every 5 epochs"""
+    lr = lr_init * (0.1 ** (epoch // 5))
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
