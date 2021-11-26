@@ -65,7 +65,11 @@ def main():
             args.start_epoch = 0
     else:
         model = models.MobileNet(decoder='upconv', output_size=(224,224), in_channels=3, pretrained=True)
-    
+        print("=> model created.")
+        optimizer = torch.optim.SGD(model.parameters(), args.lr, \
+            momentum=args.momentum, weight_decay=args.weight_decay)
+        # model = torch.nn.DataParallel(model).cuda() # for multi-gpu training
+        model = model.cuda()
             
     # define loss function (criterion) and optimizer
     if args.criterion == 'l2':
