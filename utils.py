@@ -14,6 +14,7 @@ def parse_command():
 
     from dataloaders.dataloader import MyDataloader
     modality_names = MyDataloader.modality_names
+    loss_names = ['l1','l2']
 
     import argparse
     parser = argparse.ArgumentParser(description='FastDepth')
