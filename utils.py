@@ -30,6 +30,8 @@ def parse_command():
     parser.add_argument('-e', '--evaluate', default='', type=str, metavar='PATH',)
     parser.add_argument('--resume', default='', type=str, metavar='PATH',)
     parser.add_argument('--gpu', default='0', type=str, metavar='N', help="gpu id")
+    parser.add_argument('--epochs', default=15, type=int, metavar='N',
+                        help='number of total epochs to run (default: 15)')
     parser.add_argument('--batch_size', default='8', type=int, metavar='N', help="gpu id")
     parser.add_argument('-c', '--criterion', metavar='LOSS', default='l1', choices=loss_names,
                         help='loss function: ' + ' | '.join(loss_names) + ' (default: l1)')
