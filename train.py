@@ -114,7 +114,6 @@ def main():
         utils.save_checkpoint({
             'args': args,
             'epoch': epoch,
-            'arch': args.arch,
             'model': model,
             'best_result': best_result,
             'optimizer' : optimizer,
